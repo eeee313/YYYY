@@ -124,6 +124,7 @@ class Order:
         self.order_type = order_type
         self.rating = 5          # default star rating shown when the order-completed embed posts
         self.handled_by = None   # staff member ID who marked the order completed
+        self.sent = False        # whether the Order Completed embed has been posted already
 
 
 class OrderManager:
@@ -147,6 +148,7 @@ class OrderManager:
                         order.payment_amount = value.get('payment_amount')
                         order.rating = value.get('rating', 5)
                         order.handled_by = value.get('handled_by')
+                        order.sent = value.get('sent', False)
                         self.orders[key] = order
         except FileNotFoundError:
             pass
@@ -167,7 +169,8 @@ class OrderManager:
                 'payment_amount': order.payment_amount,
                 'order_type': order.order_type,
                 'rating': order.rating,
-                'handled_by': order.handled_by
+                'handled_by': order.handled_by,
+                'sent': order.sent
             }
         with open('orders.json', 'w') as f:
             json.dump(data, f, indent=2)
@@ -789,6 +792,7 @@ async def view_order(ctx, order_id: str):
 
             if status == "completed" and updated_order:
                 updated_order.handled_by = interaction.user.id
+                updated_order.sent = True
                 order_manager.save_orders()
                 history_channel = bot.get_channel(ORDER_CHANNEL_ID)
                 if history_channel:
@@ -806,8 +810,45 @@ async def view_order(ctx, order_id: str):
 # ========== SEND COMMAND ==========
 @bot.command(name='send')
 @commands.has_permissions(administrator=True)
-async def send_command(ctx, order_id: str, rating: int = 5, *, comment: str = None):
-    """Posts a vouch for a REAL completed order. Usage: !send <order_id> [rating 1-5] [comment]
+async def send_command(ctx, order_id: str = None):
+    """Posts the 'Order Completed' receipt embed for a REAL completed order.
+    Usage: !send  (no ID — auto-picks the oldest completed order not yet sent)
+           !send <order_id>  (a specific order)
+    Refuses to run for orders that don't exist or aren't completed — this
+    posts proof of a real transaction, not a blank template."""
+    if order_id:
+        order = order_manager.get_order(order_id)
+        if not order:
+            await ctx.send(f"❌ Order `{order_id}` not found.")
+            return
+        if order.status != "completed":
+            await ctx.send(f"❌ Order `{order_id}` is **{order.status}**, not completed yet.")
+            return
+    else:
+        candidates = [o for o in order_manager.orders.values() if o.status == "completed" and not o.sent]
+        if not candidates:
+            await ctx.send("✅ No completed orders waiting to be sent.")
+            return
+        order = min(candidates, key=lambda o: o.created_at)
+
+    if not order.handled_by:
+        order.handled_by = ctx.author.id
+    order.sent = True
+    order_manager.save_orders()
+
+    history_channel = bot.get_channel(ORDER_CHANNEL_ID)
+    if history_channel is None:
+        await ctx.send("❌ Order history channel not found. Check ORDER_CHANNEL_ID.")
+        return
+
+    await history_channel.send(embed=build_order_completed_embed(order))
+    await ctx.send(f"✅ Sent `{order.order_id}` to {history_channel.mention}!")
+
+
+@bot.command(name='vouch')
+@commands.has_permissions(administrator=True)
+async def vouch_command(ctx, order_id: str, rating: int = 5, *, comment: str = None):
+    """Posts a vouch for a REAL completed order. Usage: !vouch <order_id> [rating 1-5] [comment]
     Refuses to run for orders that don't exist or aren't completed — this posts
     proof of a real transaction, not filler content."""
     order = order_manager.get_order(order_id)
