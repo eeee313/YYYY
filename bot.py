@@ -16,6 +16,7 @@ LITECOIN_ADDRESS = "LX9UuyZGTx8eiCCCk2hzRGTgZCMHph8UDi"
 # Channel IDs
 VOUCHES_CHANNEL_ID = 1527833204935889120
 ORDER_HISTORY_CHANNEL_ID = 1527833245868363856
+TICKET_CATEGORY_ID = 1527856283498184876  # Ticket category
 
 # Bot setup
 intents = discord.Intents.default()
@@ -33,11 +34,11 @@ PRICING = {
 
 # Account pricing
 ACCOUNT_PRICES = {
-    "headless": 50.00,
-    "korblox": 75.00,
-    "brainrot": 100.00,
-    "limited": 150.00,
-    "aged": 30.00
+    "korblox": 19.99,
+    "headless": 29.99,
+    "valkyrie": 39.99,
+    "korblox_headless": 49.99,
+    "korblox_headless_valkyrie": 59.99
 }
 
 # Supported cryptocurrencies
@@ -215,74 +216,155 @@ async def before_auto_post():
 @bot.command(name='setup_robux')
 @commands.has_permissions(administrator=True)
 async def setup_robux(ctx):
+    """Setup Buy Robux panel - Matches screenshot 2"""
     embed = discord.Embed(
-        title="🛒 Buy Robux™",
-        description="Click the button below to purchase Robux!",
-        color=discord.Color.green()
+        title="# Buy Robux™ - Robux",
+        description="",
+        color=discord.Color.blue()
     )
     embed.add_field(
-        name="📋 Information",
-        value="• Min order: 1,000 Robux\n• Multiple delivery methods\n• Secure payments with Litecoin",
+        name="## Information",
+        value="• This bot is a Discord bot designed to streamline the process of purchasing and distributing Robux, the virtual currency used in Roblox. We insist to read all the articles below \"important\" category.",
         inline=False
     )
     embed.add_field(
-        name="💳 Payment",
-        value="Litecoin only",
+        name="## Fully Automated Payments:",
+        value="• Experience seamless transactions with our fully automated payment system.",
         inline=False
     )
+    embed.add_field(
+        name="## Transaction Security:",
+        value="• Our bot guarantees a safe and secure payment process every time.",
+        inline=False
+    )
+    embed.add_field(
+        name="## Delivery Method:",
+        value="• Robux is delivered via Gamepass, Pre-loaded Account or Roblox Giftcard.",
+        inline=False
+    )
+    embed.add_field(
+        name="## Account Safety:",
+        value="• You will not get banned for purchasing Robux, our goods are supplied by legitimate individuals.",
+        inline=False
+    )
+    embed.add_field(
+        name="---",
+        value="",
+        inline=False
+    )
+    embed.add_field(
+        name="## Payment Methods",
+        value="• **Cryptocurrency** (Bitcoin / Litecoin / Ethereum / Solana / Tether USDT)\n• **Card** (Credit / Debit / ApplePay / GooglePay / And More...)\n• **PayPal** (PayPal Balance / PayPal Card / And More...)\n• **Giftcards** (Steam / Binance / PaySafe / Rewarble)",
+        inline=False
+    )
+    embed.add_field(
+        name="---",
+        value="",
+        inline=False
+    )
+    embed.add_field(
+        name="## Products",
+        value="• **Robux Rates:**\n  • **Gamepass**: Standard Price\n  • **Pre-loaded Account**: 2× Price\n  • **Roblox Giftcard**: 2.5× Price",
+        inline=False
+    )
+    embed.add_field(
+        name="## Example:",
+        value="• 10,000 Robux → $10.00 (Gamepass)\n• 10,000 Robux → $20.00 (Pre-loaded Account)\n• 10,000 Robux → $25.00 (Roblox Giftcard)",
+        inline=False
+    )
+    
     view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="🛒 Buy Robux", style=discord.ButtonStyle.green, custom_id="buy_robux"))
+    view.add_item(discord.ui.Button(label="🛒 BUY ROBUX", style=discord.ButtonStyle.green, custom_id="buy_robux"))
     await ctx.send(embed=embed, view=view)
     await ctx.send("✅ Buy Robux panel setup complete!")
 
 @bot.command(name='setup_accounts')
 @commands.has_permissions(administrator=True)
 async def setup_accounts(ctx):
+    """Setup Buy Accounts panel - Matches screenshot 3"""
     embed = discord.Embed(
-        title="👤 Buy Accounts",
-        description="Click the button below to purchase accounts!",
+        title="# Buy Robux™ - Roblox Accounts",
+        description="",
         color=discord.Color.purple()
     )
     embed.add_field(
-        name="📋 Available Accounts",
-        value="• Headless Account ($50)\n• Korblox Account ($75)\n• Brainrot Account ($100)\n• Limited Account ($150)\n• Aged Account ($30)",
+        name="## Information",
+        value="• This bot is a Discord bot designed to streamline the process of purchasing and distributing Roblox Products, the virtual gaming platform. We insist to read all the articles below \"important\" category.",
         inline=False
     )
     embed.add_field(
-        name="💳 Payment",
-        value="Litecoin only",
+        name="## Fully Automated Payments:",
+        value="• Experience seamless transactions with our fully automated payment system.",
         inline=False
     )
+    embed.add_field(
+        name="## Transaction Security:",
+        value="• Our bot guarantees a safe and secure payment process every time.",
+        inline=False
+    )
+    embed.add_field(
+        name="## Delivery Method:",
+        value="• Roblox Accounts are delivered via Login Credentials with Original creation E-Mail.",
+        inline=False
+    )
+    embed.add_field(
+        name="## Account Safety:",
+        value="• You will not get banned for purchasing Roblox Account.",
+        inline=False
+    )
+    embed.add_field(
+        name="---",
+        value="",
+        inline=False
+    )
+    embed.add_field(
+        name="## Payment Methods",
+        value="• **Cryptocurrency** (Bitcoin / Litecoin / Ethereum / Solana / Tether USDT)\n• **Card** (Credit / Debit / ApplePay / GooglePay / And More...)\n• **PayPal** (PayPal Balance / PayPal Card / And More...)\n• **Giftcards** (Steam / Binance / PaySafe / Rewarble)",
+        inline=False
+    )
+    embed.add_field(
+        name="---",
+        value="",
+        inline=False
+    )
+    embed.add_field(
+        name="## Products",
+        value="• **Korblox Account** | $19.99\n• **Headless Account** | $29.99\n• **Violet Valkyrie Account** | $39.99\n• **Korblox + Headless Account** | $49.99\n• **Korblox + Headless + Valkyrie Account** | $59.99",
+        inline=False
+    )
+    
     view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="👤 Buy Account", style=discord.ButtonStyle.blurple, custom_id="buy_account"))
+    view.add_item(discord.ui.Button(label="👤 BUY ACCOUNT", style=discord.ButtonStyle.blurple, custom_id="buy_account"))
     await ctx.send(embed=embed, view=view)
     await ctx.send("✅ Buy Account panel setup complete!")
 
 @bot.command(name='setup_sell')
 @commands.has_permissions(administrator=True)
 async def setup_sell(ctx):
+    """Setup Sell Items panel - Matches screenshot 1"""
     embed = discord.Embed(
-        title="💎 Sell Items",
-        description="Click the button below to sell your items!",
+        title="Buy Robux™ - Sell Your Items",
+        description="",
         color=discord.Color.gold()
     )
     embed.add_field(
-        name="📋 Games I Buy",
-        value="• Adopt Me (turtles, crows, etc.)\n• Murder Mystery 2 (500+ value)\n• Blade Ball (1000+ RAP)\n• Steal a Brainrot (garamas, dragons)\n• GAG 2 (unicorns, DF racoons)\n• ANY Robux (buying all)",
+        name="Information:",
+        value="We cash out Roblox Limiteds. Robux. IN-Game Items. Clothing/Developer Active Roblox Group, and more! (Make Ticket & Ask)",
         inline=False
     )
     embed.add_field(
-        name="💳 Payment Methods",
-        value="Robux • PayPal • Crypto • Bank Transfer • Local Money Apps",
+        name="Payment methods:",
+        value="• **PayPal** | PayPal Transfer\n• **Cryptocurrency** | All Coins\n• **Other Methods** | Bank Transfer / Giftcards / Robux",
         inline=False
     )
     embed.add_field(
-        name="⚠️ Note",
-        value=f"DM <@{OWNER_ID}> directly to sell your items!",
+        name="Looking For:",
+        value="• **Roblox Limiteds** | High Value Only\n• **Robux** | High Bulk Only\n• **IN-Game Items** | High Tier Only → Adopt Me / MM2 / Da Hood ETC...\n• **Clothing/Developer Roblox Groups** | Active Groups Only",
         inline=False
     )
+    
     view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="💎 Sell Items", style=discord.ButtonStyle.secondary, custom_id="sell_items"))
+    view.add_item(discord.ui.Button(label="💎 Sell Your Items", style=discord.ButtonStyle.secondary, custom_id="sell_items"))
     await ctx.send(embed=embed, view=view)
     await ctx.send("✅ Sell Items panel setup complete!")
 
@@ -306,15 +388,21 @@ class TicketView(discord.ui.View):
     async def create_ticket(self, interaction: discord.Interaction, ticket_type: str):
         guild = interaction.guild
         
+        # Check if user already has a ticket
         for channel in guild.channels:
             if channel.name == f"ticket-{interaction.user.name.lower()}":
                 await interaction.response.send_message("You already have an open ticket!", ephemeral=True)
                 return
         
-        category = discord.utils.get(guild.categories, name="Tickets")
+        # Get the ticket category by ID
+        category = guild.get_channel(TICKET_CATEGORY_ID)
         if not category:
-            category = await guild.create_category("Tickets")
+            # Fallback: create or find "Tickets" category
+            category = discord.utils.get(guild.categories, name="Tickets")
+            if not category:
+                category = await guild.create_category("Tickets")
         
+        # Create overwrites
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
@@ -325,9 +413,11 @@ class TicketView(discord.ui.View):
         if owner:
             overwrites[owner] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
         
+        # Create the ticket channel
         channel_name = f"ticket-{interaction.user.name.lower()}"
         channel = await guild.create_text_channel(channel_name, category=category, overwrites=overwrites)
         
+        # Send welcome message based on ticket type
         embed = discord.Embed(
             title=f"🎫 Ticket Created",
             description=f"Welcome {interaction.user.mention}!",
@@ -503,32 +593,30 @@ class AccountOrderView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
     
-    @discord.ui.button(label="Headless Account", style=discord.ButtonStyle.secondary, custom_id="headless")
-    async def headless(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_account(interaction, "headless", "$50.00")
-    
-    @discord.ui.button(label="Korblox Account", style=discord.ButtonStyle.secondary, custom_id="korblox")
+    @discord.ui.button(label="Korblox Account ($19.99)", style=discord.ButtonStyle.secondary, custom_id="korblox")
     async def korblox(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_account(interaction, "korblox", "$75.00")
+        await self.process_account(interaction, "Korblox Account", 19.99)
     
-    @discord.ui.button(label="Brainrot Account", style=discord.ButtonStyle.secondary, custom_id="brainrot")
-    async def brainrot(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_account(interaction, "brainrot", "$100.00")
+    @discord.ui.button(label="Headless Account ($29.99)", style=discord.ButtonStyle.secondary, custom_id="headless")
+    async def headless(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_account(interaction, "Headless Account", 29.99)
     
-    @discord.ui.button(label="Limited Account", style=discord.ButtonStyle.secondary, custom_id="limited")
-    async def limited(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_account(interaction, "limited", "$150.00")
+    @discord.ui.button(label="Violet Valkyrie ($39.99)", style=discord.ButtonStyle.secondary, custom_id="valkyrie")
+    async def valkyrie(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_account(interaction, "Violet Valkyrie Account", 39.99)
     
-    @discord.ui.button(label="Aged Account", style=discord.ButtonStyle.secondary, custom_id="aged")
-    async def aged(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_account(interaction, "aged", "$30.00")
+    @discord.ui.button(label="Korblox + Headless ($49.99)", style=discord.ButtonStyle.secondary, custom_id="korblox_headless")
+    async def korblox_headless(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_account(interaction, "Korblox + Headless Account", 49.99)
     
-    async def process_account(self, interaction: discord.Interaction, account_type: str, price_str: str):
-        price = float(price_str.replace('$', ''))
-        
+    @discord.ui.button(label="Korblox + Headless + Valkyrie ($59.99)", style=discord.ButtonStyle.secondary, custom_id="korblox_headless_valkyrie")
+    async def korblox_headless_valkyrie(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.process_account(interaction, "Korblox + Headless + Valkyrie Account", 59.99)
+    
+    async def process_account(self, interaction: discord.Interaction, account_type: str, price: float):
         embed = discord.Embed(
             title="👤 Account Purchase",
-            description=f"You selected: **{account_type.title()} Account**\nPrice: **{price_str}**",
+            description=f"You selected: **{account_type}**\nPrice: **${price:.2f}**",
             color=discord.Color.purple()
         )
         embed.add_field(name="Payment", value="Litecoin only", inline=False)
@@ -560,7 +648,7 @@ class AccountPaymentView(discord.ui.View):
             description=f"**Order ID:** `{order.order_id}`",
             color=discord.Color.gold()
         )
-        embed.add_field(name="👤 Account Type", value=self.account_type.title(), inline=False)
+        embed.add_field(name="👤 Account Type", value=self.account_type, inline=False)
         embed.add_field(name="💰 Price", value=f"${self.price:.2f}", inline=False)
         embed.add_field(name="📤 Send To", value=f"```{LITECOIN_ADDRESS}```", inline=False)
         embed.add_field(name="💵 Amount", value=f"```{ltc_amount} LTC```", inline=False)
@@ -573,7 +661,7 @@ class AccountPaymentView(discord.ui.View):
         
         owner = bot.get_user(OWNER_ID)
         if owner:
-            await owner.send(f"🆕 New Account Order!\nOrder ID: `{order.order_id}`\nUser: {interaction.user.name}\nAccount Type: {self.account_type.title()}\nPrice: ${self.price:.2f}\nCheck {interaction.channel.mention}")
+            await owner.send(f"🆕 New Account Order!\nOrder ID: `{order.order_id}`\nUser: {interaction.user.name}\nAccount Type: {self.account_type}\nPrice: ${self.price:.2f}\nCheck {interaction.channel.mention}")
 
 # ========== ADMIN COMMANDS ==========
 @bot.command(name='orders')
@@ -618,7 +706,7 @@ async def view_order(ctx, order_id: str):
         embed.add_field(name="Amount", value=f"{order.amount:,} Robux", inline=True)
         embed.add_field(name="Delivery Method", value=order.delivery_method.replace('_', ' ').title(), inline=True)
     else:
-        embed.add_field(name="Account Type", value=order.amount.title(), inline=True)
+        embed.add_field(name="Account Type", value=order.amount, inline=True)
     
     embed.add_field(name="Price", value=f"${order.price:.2f}", inline=True)
     embed.add_field(name="Status", value=ORDER_STATUSES.get(order.status, order.status), inline=True)
@@ -659,40 +747,4 @@ async def on_interaction(interaction: discord.Interaction):
     
     elif custom_id == 'complete_order':
         if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("❌ Only the owner can complete orders!", ephemeral=True)
-            return
-        
-        if interaction.message and interaction.message.embeds:
-            embed = interaction.message.embeds[0]
-            if embed.title and embed.title.startswith("📋 Order Details -"):
-                order_id = embed.title.replace("📋 Order Details - ", "")
-                order_manager.update_order_status(order_id, "completed")
-                await interaction.response.send_message("✅ Order marked as completed!")
-                
-                order = order_manager.get_order(order_id)
-                if order:
-                    user = bot.get_user(order.user_id)
-                    if user:
-                        await user.send(f"✅ Your order `{order_id}` has been completed! Enjoy your purchase!")
-    
-    elif custom_id == 'cancel_order':
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("❌ Only the owner can cancel orders!", ephemeral=True)
-            return
-        
-        if interaction.message and interaction.message.embeds:
-            embed = interaction.message.embeds[0]
-            if embed.title and embed.title.startswith("📋 Order Details -"):
-                order_id = embed.title.replace("📋 Order Details - ", "")
-                order_manager.update_order_status(order_id, "cancelled")
-                await interaction.response.send_message("❌ Order cancelled!")
-                
-                order = order_manager.get_order(order_id)
-                if order:
-                    user = bot.get_user(order.user_id)
-                    if user:
-                        await user.send(f"❌ Your order `{order_id}` has been cancelled. Please contact support if you have questions.")
-
-# ========== RUN BOT ==========
-if __name__ == "__main__":
-    bot.run(BOT_TOKEN)
+            await interaction.response.send_message("❌ Only
