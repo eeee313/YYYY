@@ -68,6 +68,34 @@ def safe_channel_name(name: str) -> str:
     return name or "ticket"
 
 
+def calculate_robux_price(amount: int) -> float:
+    """Base (Gamepass) price for a given Robux amount. Delivery-method
+    multipliers (preloaded 2x, giftcard 2.5x) are applied on top of this."""
+    if 1000 <= amount <= 24000:
+        return (amount / 1000) * 1.00
+    elif 25000 <= amount <= 49000:
+        return (amount / 1000) * 0.90
+    elif 50000 <= amount <= 99000:
+        return (amount / 1000) * 0.80
+    elif 100000 <= amount <= 249000:
+        return (amount / 1000) * 0.70
+    elif 250000 <= amount <= 499000:
+        return (amount / 1000) * 0.60
+    else:
+        return (amount / 1000) * 0.50
+
+
+def parse_robux_amount(raw: str):
+    """Parse '25000', '25,000', or '50k' into an int. Returns None if invalid."""
+    raw = raw.strip().lower().replace(',', '')
+    try:
+        if raw.endswith('k'):
+            return int(float(raw[:-1]) * 1000)
+        return int(raw)
+    except ValueError:
+        return None
+
+
 class Order:
     def __init__(self, user_id, amount, delivery_method, payment_method, price, order_type="robux"):
         self.user_id = user_id
@@ -201,29 +229,97 @@ class TicketView(discord.ui.View):
         if owner:
             overwrites[owner] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
-        channel = await guild.create_text_channel(expected_name, category=category, overwrites=overwrites)
-
-        embed = discord.Embed(
-            title="🎫 Ticket Created",
-            description=f"Welcome {interaction.user.mention}!",
-            color=discord.Color.green()
+        # Store the opener's ID in the channel topic so the Close button can
+        # tell who's allowed to close it without a separate lookup table.
+        channel = await guild.create_text_channel(
+            expected_name, category=category, overwrites=overwrites, topic=str(interaction.user.id)
         )
 
+        type_labels = {
+            "robux": "Robux Purchase",
+            "account": "Account Purchase",
+            "sell": "Selling Items"
+        }
+        panel_titles = {
+            "robux": "Buy Robux™ - Robux",
+            "account": "Buy Robux™ - Roblox Accounts",
+            "sell": "Buy Robux™ - Sell Your Items"
+        }
+
+        embed = discord.Embed(
+            title=panel_titles[ticket_type],
+            description=(
+                f"Welcome {interaction.user.mention}!\n\n"
+                f"You've opened a ticket for **{type_labels[ticket_type]}**.\n"
+                f"A staff member has been notified and your order is starting now."
+            ),
+            color=discord.Color.green()
+        )
+        await channel.send(embed=embed, view=TicketCloseView())
+
         if ticket_type == "robux":
-            embed.add_field(name="Type", value="🛒 Robux Purchase", inline=False)
-            await channel.send(embed=embed, view=RobuxOrderView())
+            await start_robux_flow(channel, interaction.user)
         elif ticket_type == "account":
-            embed.add_field(name="Type", value="👤 Account Purchase", inline=False)
-            await channel.send(embed=embed, view=AccountOrderView())
+            account_embed = discord.Embed(
+                title="Select an account",
+                description="Choose the account you'd like to purchase below.",
+                color=discord.Color.purple()
+            )
+            await channel.send(embed=account_embed, view=AccountOrderView())
         elif ticket_type == "sell":
-            embed.add_field(name="Type", value="💎 Selling Items", inline=False)
-            embed.add_field(name="Note", value=f"Please wait for <@{OWNER_ID}> to assist you!", inline=False)
-            await channel.send(embed=embed)
+            sell_embed = discord.Embed(
+                title="Selling items",
+                description=f"Please wait for <@{OWNER_ID}> to assist you!",
+                color=discord.Color.gold()
+            )
+            await channel.send(embed=sell_embed)
             owner_user = bot.get_user(OWNER_ID)
             if owner_user:
                 await owner_user.send(f"💎 {interaction.user.name} wants to sell items! Check {channel.mention}")
 
         await interaction.followup.send(f"✅ Ticket created! Check {channel.mention}", ephemeral=True)
+
+
+# ========== TICKET CLOSE ==========
+class ConfirmCloseView(discord.ui.View):
+    def __init__(self, channel: discord.TextChannel):
+        super().__init__(timeout=60)
+        self.channel = channel
+
+    @discord.ui.button(label="Confirm close", style=discord.ButtonStyle.danger, custom_id="confirm_close")
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("Closing ticket...", ephemeral=True)
+        await asyncio.sleep(2)
+        try:
+            await self.channel.delete()
+        except discord.HTTPException:
+            pass
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary, custom_id="cancel_close")
+    async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.edit_message(content="Close cancelled.", view=None)
+
+
+class TicketCloseView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Close", emoji="🔒", style=discord.ButtonStyle.danger, custom_id="close_ticket")
+    async def close(self, interaction: discord.Interaction, button: discord.ui.Button):
+        channel = interaction.channel
+        opener_id = int(channel.topic) if channel.topic and channel.topic.isdigit() else None
+        is_opener = opener_id is not None and interaction.user.id == opener_id
+        is_staff = interaction.user.guild_permissions.administrator
+
+        if not (is_opener or is_staff):
+            await interaction.response.send_message("Only the ticket opener or staff can close this ticket.", ephemeral=True)
+            return
+
+        await interaction.response.send_message(
+            "Are you sure you want to close this ticket?",
+            view=ConfirmCloseView(channel),
+            ephemeral=True
+        )
 
 
 # ========== CONFIRM PAYMENT (shared handler) ==========
@@ -265,80 +361,90 @@ class ConfirmPaymentView(discord.ui.View):
         )
 
 
-# ========== ROBUX ORDER VIEWS ==========
-class RobuxOrderView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
+# ========== ROBUX ORDER FLOW ==========
+async def start_robux_flow(channel: discord.TextChannel, user: discord.User):
+    """Auto-prompts for the Robux amount right after ticket creation (no
+    button needed — matches the reference flow) and pins the prompt."""
+    prompt_embed = discord.Embed(
+        title="How much Robux would you like to buy?",
+        description=(
+            "Please specify the amount of Robux you would like to purchase.\n"
+            "Example: `25000` or `50k`\n"
+            "The minimum order amount is **1,000 Robux**"
+        ),
+        color=discord.Color.blue()
+    )
+    prompt_msg = await channel.send(embed=prompt_embed)
+    try:
+        await prompt_msg.pin()
+    except discord.HTTPException:
+        pass
 
-    @discord.ui.button(label="Enter Amount", style=discord.ButtonStyle.primary, custom_id="enter_amount")
-    async def enter_amount(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message("Please enter the amount of Robux you want to buy (min 1000):", ephemeral=True)
+    def check(m):
+        return m.author.id == user.id and m.channel.id == channel.id
 
-        def check(m):
-            return m.author == interaction.user and m.channel == interaction.channel
-
+    while True:
         try:
-            msg = await bot.wait_for('message', timeout=60.0, check=check)
-            amount = int(msg.content.replace(',', '').replace('k', '000').replace('K', '000'))
-
-            if amount < 1000:
-                await interaction.followup.send("❌ Minimum order is 1,000 Robux!", ephemeral=True)
-                return
-
-            price = self.calculate_price(amount)
-            embed = discord.Embed(
-                title="📦 Select Delivery Method",
-                description=f"Amount: **{amount:,} Robux**\nPrice: **${price:.2f}**",
-                color=discord.Color.blue()
-            )
-            await interaction.channel.send(embed=embed, view=DeliveryMethodView(amount, price))
-
-        except ValueError:
-            await interaction.followup.send("❌ Invalid amount! Please enter a number.", ephemeral=True)
+            msg = await bot.wait_for('message', timeout=300.0, check=check)
         except asyncio.TimeoutError:
-            await interaction.followup.send("⏰ Timeout! Please start again.", ephemeral=True)
+            await channel.send("⏰ No response received. Send a message with the amount to try again, or ask staff for help.")
+            return
 
-    def calculate_price(self, amount):
-        if 1000 <= amount <= 24000:
-            return (amount / 1000) * 1.00
-        elif 25000 <= amount <= 49000:
-            return (amount / 1000) * 0.90
-        elif 50000 <= amount <= 99000:
-            return (amount / 1000) * 0.80
-        elif 100000 <= amount <= 249000:
-            return (amount / 1000) * 0.70
-        elif 250000 <= amount <= 499000:
-            return (amount / 1000) * 0.60
-        else:
-            return (amount / 1000) * 0.50
+        amount = parse_robux_amount(msg.content)
+        if amount is None:
+            await channel.send("❌ Please enter a valid number, e.g. `25000` or `50k`.")
+            continue
+        if amount < 1000:
+            await channel.send("❌ Minimum order is 1,000 Robux — try again.")
+            continue
+        break
+
+    price = calculate_robux_price(amount)
+    embed = discord.Embed(
+        title="📦 How would you like to receive your Robux?",
+        description=f"Amount: **{amount:,} Robux**\nBase price: **${price:.2f}**",
+        color=discord.Color.blue()
+    )
+    await channel.send(embed=embed, view=DeliveryMethodSelectView(amount, price))
 
 
-class DeliveryMethodView(discord.ui.View):
-    def __init__(self, amount, price):
-        super().__init__(timeout=None)
+class DeliveryMethodSelect(discord.ui.Select):
+    def __init__(self, amount: int, price: float):
         self.amount = amount
         self.price = price
+        options = [
+            discord.SelectOption(
+                label="Gamepass", value="gamepass", emoji="🎮",
+                description=f"${price:.2f} — sent via gamepass purchase"
+            ),
+            discord.SelectOption(
+                label="Pre-loaded account", value="preloaded_account", emoji="👤",
+                description=f"${price * 2:.2f} — our pre-loaded account"
+            ),
+            discord.SelectOption(
+                label="Roblox giftcard", value="giftcard", emoji="🎁",
+                description=f"${price * 2.5:.2f} — Roblox giftcard code"
+            ),
+            discord.SelectOption(
+                label="In-game trade", value="in_game", emoji="🕹️",
+                description="Ask staff for in-game delivery"
+            ),
+        ]
+        super().__init__(placeholder="Select how you would like to receive robux",
+                          min_values=1, max_values=1, options=options)
 
-    @discord.ui.button(label="Gamepass", style=discord.ButtonStyle.secondary, custom_id="gamepass")
-    async def gamepass(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_delivery(interaction, "gamepass")
+    async def callback(self, interaction: discord.Interaction):
+        method = self.values[0]
 
-    @discord.ui.button(label="Pre-loaded Account", style=discord.ButtonStyle.secondary, custom_id="preloaded")
-    async def preloaded(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_delivery(interaction, "preloaded_account")
+        if method == "in_game":
+            await interaction.response.send_message(
+                f"Got it! In-game was chosen, please wait for the owner - <@{OWNER_ID}>", ephemeral=False
+            )
+            owner = bot.get_user(OWNER_ID)
+            if owner:
+                await owner.send(f"🎮 {interaction.user.name} chose In-Game delivery for {self.amount:,} Robux! Check {interaction.channel.mention}")
+            return
 
-    @discord.ui.button(label="Roblox Giftcard", style=discord.ButtonStyle.secondary, custom_id="giftcard")
-    async def giftcard(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.process_delivery(interaction, "giftcard")
-
-    @discord.ui.button(label="🎮 In-Game", style=discord.ButtonStyle.danger, custom_id="ingame")
-    async def ingame(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message(f"Got it! In-game was chosen, please wait for the owner - <@{OWNER_ID}>", ephemeral=False)
-        owner = bot.get_user(OWNER_ID)
-        if owner:
-            await owner.send(f"🎮 {interaction.user.name} chose In-Game delivery for {self.amount:,} Robux! Check {interaction.channel.mention}")
-
-    async def process_delivery(self, interaction: discord.Interaction, method: str):
         final_price = self.price
         if method == "preloaded_account":
             final_price = self.price * 2
@@ -353,6 +459,12 @@ class DeliveryMethodView(discord.ui.View):
         embed.add_field(name="Note", value="Only Cryptocurrency is accepted!", inline=False)
 
         await interaction.response.send_message(embed=embed, view=PaymentMethodView(self.amount, method, final_price))
+
+
+class DeliveryMethodSelectView(discord.ui.View):
+    def __init__(self, amount: int, price: float):
+        super().__init__(timeout=None)
+        self.add_item(DeliveryMethodSelect(amount, price))
 
 
 class PaymentMethodView(discord.ui.View):
@@ -619,7 +731,7 @@ async def on_ready():
 
     # Register persistent views so buttons keep working after a restart
     bot.add_view(TicketView())
-    bot.add_view(RobuxOrderView())
+    bot.add_view(TicketCloseView())
     bot.add_view(AccountOrderView())
 
     try:
