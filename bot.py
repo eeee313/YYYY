@@ -7,8 +7,8 @@ from datetime import datetime
 import random
 
 # Configuration
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-OWNER_ID = 1173953184113360910
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your bot token
+OWNER_ID = 1173953184113360910  # Owner ID for notifications
 
 # LITECOIN CONFIGURATION
 LITECOIN_ADDRESS = "LX9UuyZGTx8eiCCCk2hzRGTgZCMHph8UDi"
@@ -224,6 +224,84 @@ async def auto_post_messages():
 async def before_auto_post():
     """Wait for bot to be ready before starting"""
     await bot.wait_until_ready()
+
+# ========== SETUP COMMANDS ==========
+@bot.command(name='setup_robux')
+@commands.has_permissions(administrator=True)
+async def setup_robux(ctx):
+    """Setup Buy Robux panel in current channel"""
+    embed = discord.Embed(
+        title="🛒 Buy Robux™",
+        description="Click the button below to purchase Robux!",
+        color=discord.Color.green()
+    )
+    embed.add_field(
+        name="📋 Information",
+        value="• Min order: 1,000 Robux\n• Multiple delivery methods\n• Secure payments with Litecoin",
+        inline=False
+    )
+    embed.add_field(
+        name="💳 Payment",
+        value="Litecoin only",
+        inline=False
+    )
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label="🛒 Buy Robux", style=discord.ButtonStyle.green, custom_id="buy_robux"))
+    await ctx.send(embed=embed, view=view)
+    await ctx.send("✅ Buy Robux panel setup complete!")
+
+@bot.command(name='setup_accounts')
+@commands.has_permissions(administrator=True)
+async def setup_accounts(ctx):
+    """Setup Buy Account panel in current channel"""
+    embed = discord.Embed(
+        title="👤 Buy Accounts",
+        description="Click the button below to purchase accounts!",
+        color=discord.Color.purple()
+    )
+    embed.add_field(
+        name="📋 Available Accounts",
+        value="• Headless Account ($50)\n• Korblox Account ($75)\n• Brainrot Account ($100)\n• Limited Account ($150)\n• Aged Account ($30)",
+        inline=False
+    )
+    embed.add_field(
+        name="💳 Payment",
+        value="Litecoin only",
+        inline=False
+    )
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label="👤 Buy Account", style=discord.ButtonStyle.blurple, custom_id="buy_account"))
+    await ctx.send(embed=embed, view=view)
+    await ctx.send("✅ Buy Account panel setup complete!")
+
+@bot.command(name='setup_sell')
+@commands.has_permissions(administrator=True)
+async def setup_sell(ctx):
+    """Setup Sell Items panel in current channel"""
+    embed = discord.Embed(
+        title="💎 Sell Items",
+        description="Click the button below to sell your items!",
+        color=discord.Color.gold()
+    )
+    embed.add_field(
+        name="📋 Games I Buy",
+        value="• Adopt Me (turtles, crows, etc.)\n• Murder Mystery 2 (500+ value)\n• Blade Ball (1000+ RAP)\n• Steal a Brainrot (garamas, dragons)\n• GAG 2 (unicorns, DF racoons)\n• ANY Robux (buying all)",
+        inline=False
+    )
+    embed.add_field(
+        name="💳 Payment Methods",
+        value="Robux • PayPal • Crypto • Bank Transfer • Local Money Apps",
+        inline=False
+    )
+    embed.add_field(
+        name="⚠️ Note",
+        value=f"DM <@{OWNER_ID}> directly to sell your items!",
+        inline=False
+    )
+    view = discord.ui.View()
+    view.add_item(discord.ui.Button(label="💎 Sell Items", style=discord.ButtonStyle.gold, custom_id="sell_items"))
+    await ctx.send(embed=embed, view=view)
+    await ctx.send("✅ Sell Items panel setup complete!")
 
 # ========== TICKET SYSTEM ==========
 class TicketView(discord.ui.View):
@@ -447,7 +525,6 @@ class CryptoSelectionView(discord.ui.View):
         embed.add_field(name="⚠️ Note", value="Please send the exact amount. Your order will be processed once payment is confirmed.", inline=False)
         
         view = discord.ui.View()
-        view.add_item(discord.ui.Button(label="📋 Copy Address", style=discord.ButtonStyle.secondary, custom_id="copy_address", disabled=True))
         view.add_item(discord.ui.Button(label="✅ Confirm Payment", style=discord.ButtonStyle.success, custom_id="confirm_payment"))
         
         await interaction.response.send_message(embed=embed, view=view)
@@ -538,29 +615,30 @@ class AccountPaymentView(discord.ui.View):
         if owner:
             await owner.send(f"🆕 New Account Order!\nOrder ID: `{order.order_id}`\nUser: {interaction.user.name}\nAccount Type: {self.account_type.title()}\nPrice: ${self.price:.2f}\nCheck {interaction.channel.mention}")
 
-# ========== COMMANDS ==========
-@bot.command(name='setup')
+# ========== ADMIN COMMANDS ==========
+@bot.command(name='orders')
 @commands.has_permissions(administrator=True)
-async def setup(ctx):
-    """Setup the ticket system in the current channel"""
+async def list_orders(ctx):
+    """List all pending orders (Admin only)"""
+    pending_orders = [o for o in order_manager.orders.values() if o.status == "pending"]
+    
+    if not pending_orders:
+        await ctx.send("✅ No pending orders!")
+        return
+    
     embed = discord.Embed(
-        title="🛒 Buy Robux™",
-        description="Welcome to Buy Robux™!\n\nClick the buttons below to get started:",
-        color=discord.Color.green()
-    )
-    embed.add_field(
-        name="📋 Information",
-        value="• Fully automated payments\n• Secure transactions\n• Multiple delivery methods\n• Account safety guaranteed",
-        inline=False
-    )
-    embed.add_field(
-        name="💳 Payment Methods",
-        value="• Cryptocurrency (Litecoin)\n• More coming soon!",
-        inline=False
+        title=f"📋 Pending Orders ({len(pending_orders)})",
+        color=discord.Color.blue()
     )
     
-    await ctx.send(embed=embed, view=TicketView())
-    await ctx.send("✅ Setup complete! The ticket system is now active.")
+    for order in pending_orders[:10]:  # Show first 10
+        embed.add_field(
+            name=order.order_id,
+            value=f"User: <@{order.user_id}>\nType: {order.order_type.title()}\nPrice: ${order.price:.2f}",
+            inline=False
+        )
+    
+    await ctx.send(embed=embed)
 
 @bot.command(name='order')
 @commands.has_permissions(administrator=True)
@@ -600,30 +678,7 @@ async def view_order(ctx, order_id: str):
     
     await ctx.send(embed=embed, view=view)
 
-@bot.command(name='orders')
-@commands.has_permissions(administrator=True)
-async def list_orders(ctx):
-    """List all pending orders (Admin only)"""
-    pending_orders = [o for o in order_manager.orders.values() if o.status == "pending"]
-    
-    if not pending_orders:
-        await ctx.send("✅ No pending orders!")
-        return
-    
-    embed = discord.Embed(
-        title=f"📋 Pending Orders ({len(pending_orders)})",
-        color=discord.Color.blue()
-    )
-    
-    for order in pending_orders[:10]:  # Show first 10
-        embed.add_field(
-            name=order.order_id,
-            value=f"User: <@{order.user_id}>\nType: {order.order_type.title()}\nPrice: ${order.price:.2f}",
-            inline=False
-        )
-    
-    await ctx.send(embed=embed)
-
+# ========== EVENT HANDLERS ==========
 @bot.event
 async def on_ready():
     """Called when bot is ready"""
@@ -633,41 +688,7 @@ async def on_ready():
     # Start auto-posting
     auto_post_messages.start()
     print('🔄 Auto-posting started (every 20 minutes)')
-    
-    # Sync slash commands
-    try:
-        synced = await bot.tree.sync()
-        print(f"✅ Synced {len(synced)} slash commands")
-    except Exception as e:
-        print(f"❌ Failed to sync commands: {e}")
 
-# ========== SLASH COMMANDS ==========
-@bot.tree.command(name="ping", description="Check bot latency")
-async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message(f"🏓 Pong! Latency: {round(bot.latency * 1000)}ms")
-
-@bot.tree.command(name="setup", description="Setup the ticket system (Admin only)")
-@discord.app_commands.default_permissions(administrator=True)
-async def slash_setup(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="🛒 Buy Robux™",
-        description="Welcome to Buy Robux™!\n\nClick the buttons below to get started:",
-        color=discord.Color.green()
-    )
-    embed.add_field(
-        name="📋 Information",
-        value="• Fully automated payments\n• Secure transactions\n• Multiple delivery methods\n• Account safety guaranteed",
-        inline=False
-    )
-    embed.add_field(
-        name="💳 Payment Methods",
-        value="• Cryptocurrency (Litecoin)\n• More coming soon!",
-        inline=False
-    )
-    
-    await interaction.response.send_message(embed=embed, view=TicketView())
-
-# ========== EVENT HANDLERS ==========
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
     """Handle button interactions"""
