@@ -1,11 +1,20 @@
 import os
 import re
+import sys
 import discord
 from discord.ext import commands
 from discord import app_commands
 import json
 import asyncio
 from datetime import datetime
+
+# Docker/Railway containers don't attach a real terminal, so Python's default
+# buffering can hold print() output in memory instead of writing it to the
+# log stream right away — meaning errors can happen with nothing visible in
+# logs until much later (or never, if the process crashes). Force line
+# buffering so every print() shows up immediately.
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
 
 # ========== Configuration ==========
 BOT_TOKEN = os.getenv('BOT_TOKEN')
