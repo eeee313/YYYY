@@ -1,10 +1,10 @@
+import os 
+import random
 import discord
 from discord.ext import commands, tasks
 import json
-import os
 import asyncio
 from datetime import datetime
-import random
 
 # Configuration
 BOT_TOKEN = os.getenv('BOT_TOKEN')
