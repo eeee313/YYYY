@@ -7,6 +7,7 @@ from discord import app_commands
 import json
 import asyncio
 from datetime import datetime
+import random
 
 # Docker/Railway containers don't attach a real terminal, so Python's default
 # buffering can hold print() output in memory instead of writing it to the
@@ -31,6 +32,8 @@ LTC_USD_RATE = 75.00
 
 # Channel IDs
 TICKET_CATEGORY_ID = 1527856283498184876  # Ticket category
+ORDER_CHANNEL_ID = 1527833245868363856    # Order channel
+VOUCH_CHANNEL_ID = 1527833204935889120    # Vouch channel
 
 # Bot setup
 intents = discord.Intents.default()
@@ -761,24 +764,12 @@ async def view_order(ctx, order_id: str):
     await ctx.send(embed=embed, view=view)
 
 
-# ========== BOT EVENTS ==========
-@bot.event
-async def on_ready():
-    print(f"Logged in as {bot.user} (ID: {bot.user.id})")
+# ========== SEND COMMAND ==========
+@bot.command(name='send')
+@commands.has_permissions(administrator=True)
+async def send_command(ctx):
+    """Sends a random vouch + order embed (Admin only)"""
 
-    # Register persistent views so buttons keep working after a restart
-    bot.add_view(TicketView())
-    bot.add_view(TicketCloseView())
-    bot.add_view(AccountOrderView())
-
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} slash command(s).")
-    except Exception as e:
-        print(f"Slash command sync failed: {e}")
-
-
-if __name__ == "__main__":
-    if not BOT_TOKEN:
-        raise RuntimeError("BOT_TOKEN environment variable is not set.")
-    bot.run(BOT_TOKEN)
+    # Sample vouches (you can add more)
+    vouches = [
+        "Fast delivery, trusted seller!",
