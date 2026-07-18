@@ -742,4 +742,6 @@ async def view_order(ctx, order_id: str):
         embed.add_field(name="Amount", value=f"{order.amount:,} Robux", inline=True)
         embed.add_field(name="Delivery Method", value=order.delivery_method.replace('_', ' ').title(), inline=True)
     else:
-        embed.add_field(name="Account Type", value=order.amount, inline
+        embed.add_field(name="Account Type", value=order.amount, inline=True)
+    
+    embed.add_field(name="Price", value=f"${
