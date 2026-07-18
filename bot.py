@@ -174,10 +174,15 @@ class TicketView(discord.ui.View):
         guild = interaction.guild
         expected_name = f"ticket-{safe_channel_name(interaction.user.name)}"
 
+        # Acknowledge immediately — creating a channel + overwrites can easily
+        # take longer than Discord's 3-second interaction ack window, which is
+        # what causes "The application didn't respond in time".
+        await interaction.response.defer(ephemeral=True)
+
         # Check if user already has an open ticket (matches Discord's own sanitization)
         for channel in guild.channels:
             if channel.name == expected_name:
-                await interaction.response.send_message("You already have an open ticket!", ephemeral=True)
+                await interaction.followup.send("You already have an open ticket!", ephemeral=True)
                 return
 
         category = guild.get_channel(TICKET_CATEGORY_ID)
@@ -218,7 +223,7 @@ class TicketView(discord.ui.View):
             if owner_user:
                 await owner_user.send(f"💎 {interaction.user.name} wants to sell items! Check {channel.mention}")
 
-        await interaction.response.send_message(f"✅ Ticket created! Check {channel.mention}", ephemeral=True)
+        await interaction.followup.send(f"✅ Ticket created! Check {channel.mention}", ephemeral=True)
 
 
 # ========== CONFIRM PAYMENT (shared handler) ==========
