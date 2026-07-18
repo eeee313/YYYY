@@ -188,10 +188,12 @@ class TicketView(discord.ui.View):
 
     @discord.ui.button(label="🛒 Buy Robux", style=discord.ButtonStyle.green, custom_id="buy_robux")
     async def buy_robux_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"[buy_robux] clicked by {interaction.user} ({interaction.user.id})")
         await self.create_ticket(interaction, "robux")
 
     @discord.ui.button(label="👤 Buy Account", style=discord.ButtonStyle.blurple, custom_id="buy_account")
     async def buy_account_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        print(f"[buy_account] clicked by {interaction.user} ({interaction.user.id})")
         await self.create_ticket(interaction, "account")
 
     @discord.ui.button(label="💎 Sell Items", style=discord.ButtonStyle.secondary, custom_id="sell_items")
@@ -207,33 +209,47 @@ class TicketView(discord.ui.View):
         # what causes "The application didn't respond in time".
         await interaction.response.defer(ephemeral=True)
 
-        # Check if user already has an open ticket (matches Discord's own sanitization)
-        for channel in guild.channels:
-            if channel.name == expected_name:
-                await interaction.followup.send("You already have an open ticket!", ephemeral=True)
-                return
+        try:
+            # Check if user already has an open ticket (matches Discord's own sanitization)
+            for channel in guild.channels:
+                if channel.name == expected_name:
+                    await interaction.followup.send("You already have an open ticket!", ephemeral=True)
+                    return
 
-        category = guild.get_channel(TICKET_CATEGORY_ID)
-        if not category:
-            category = discord.utils.get(guild.categories, name="Tickets")
+            category = guild.get_channel(TICKET_CATEGORY_ID)
             if not category:
-                category = await guild.create_category("Tickets")
+                category = discord.utils.get(guild.categories, name="Tickets")
+                if not category:
+                    category = await guild.create_category("Tickets")
 
-        overwrites = {
-            guild.default_role: discord.PermissionOverwrite(read_messages=False),
-            interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
-            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
-        }
+            overwrites = {
+                guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+                guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            }
 
-        owner = guild.get_member(OWNER_ID)
-        if owner:
-            overwrites[owner] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            owner = guild.get_member(OWNER_ID)
+            if owner:
+                overwrites[owner] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
 
-        # Store the opener's ID in the channel topic so the Close button can
-        # tell who's allowed to close it without a separate lookup table.
-        channel = await guild.create_text_channel(
-            expected_name, category=category, overwrites=overwrites, topic=str(interaction.user.id)
-        )
+            # Store the opener's ID in the channel topic so the Close button can
+            # tell who's allowed to close it without a separate lookup table.
+            channel = await guild.create_text_channel(
+                expected_name, category=category, overwrites=overwrites, topic=str(interaction.user.id)
+            )
+            print(f"[create_ticket] channel created: {channel.name} ({channel.id})")
+        except discord.Forbidden:
+            print("[create_ticket] FORBIDDEN — bot is missing Manage Channels (or category permission) in this server.")
+            await interaction.followup.send(
+                "❌ I don't have permission to create ticket channels here. Ask an admin to grant me **Manage Channels**.",
+                ephemeral=True
+            )
+            return
+        except Exception:
+            import traceback
+            traceback.print_exc()
+            await interaction.followup.send("❌ Something went wrong creating your ticket. Staff have been notified.", ephemeral=True)
+            return
 
         type_labels = {
             "robux": "Robux Purchase",
@@ -278,6 +294,18 @@ class TicketView(discord.ui.View):
                 await owner_user.send(f"💎 {interaction.user.name} wants to sell items! Check {channel.mention}")
 
         await interaction.followup.send(f"✅ Ticket created! Check {channel.mention}", ephemeral=True)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item):
+        import traceback
+        print(f"[TicketView] unhandled error in item {item}:")
+        traceback.print_exception(type(error), error, error.__traceback__)
+        try:
+            if interaction.response.is_done():
+                await interaction.followup.send("❌ Something went wrong. Staff have been notified.", ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ Something went wrong. Staff have been notified.", ephemeral=True)
+        except discord.HTTPException:
+            pass
 
 
 # ========== TICKET CLOSE ==========
