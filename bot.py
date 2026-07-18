@@ -773,3 +773,64 @@ async def send_command(ctx):
     # Sample vouches (you can add more)
     vouches = [
         "Fast delivery, trusted seller!",
+        "Got my Robux instantly, 10/10!",
+        "Smooth transaction, will buy again.",
+        "Best prices around, highly recommend!",
+        "Legit and fast, no issues at all."
+    ]
+
+    vouch_channel = bot.get_channel(VOUCH_CHANNEL_ID)
+    if vouch_channel is None:
+        await ctx.send("❌ Vouch channel not found. Check VOUCH_CHANNEL_ID.")
+        return
+
+    vouch_text = random.choice(vouches)
+    embed = discord.Embed(
+        title="⭐ New Vouch",
+        description=vouch_text,
+        color=discord.Color.green()
+    )
+    embed.set_footer(text=f"Posted by {ctx.author.name}")
+
+    await vouch_channel.send(embed=embed)
+    await ctx.send(f"✅ Vouch sent to {vouch_channel.mention}!")
+
+
+# ========== ERROR HANDLING ==========
+@bot.event
+async def on_command_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You don't have permission to use this command.")
+    elif isinstance(error, commands.CommandNotFound):
+        pass  # ignore unknown commands
+    elif isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send(f"❌ Missing argument: `{error.param.name}`")
+    else:
+        import traceback
+        print(f"[on_command_error] Unhandled error in command '{ctx.command}':")
+        traceback.print_exception(type(error), error, error.__traceback__)
+        await ctx.send("❌ Something went wrong running that command.")
+
+
+# ========== BOT STARTUP ==========
+@bot.event
+async def on_ready():
+    print(f"[on_ready] Logged in as {bot.user} ({bot.user.id})")
+    # Re-register persistent views so buttons keep working after a restart
+    bot.add_view(TicketView())
+    bot.add_view(TicketCloseView())
+    bot.add_view(AccountOrderView())
+    try:
+        synced = await bot.tree.sync()
+        print(f"[on_ready] Synced {len(synced)} slash command(s)")
+    except Exception:
+        import traceback
+        traceback.print_exc()
+    print("[on_ready] Bot is ready.")
+
+
+if __name__ == "__main__":
+    if not BOT_TOKEN:
+        print("❌ BOT_TOKEN environment variable is not set. Exiting.")
+        sys.exit(1)
+    bot.run(BOT_TOKEN)
