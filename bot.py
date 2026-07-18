@@ -884,6 +884,60 @@ async def vouch_command(ctx, order_id: str, rating: int = 5, *, comment: str = N
     await ctx.send(f"✅ Vouch sent to {vouch_channel.mention}!")
 
 
+# ========== ROLE ALL (slash command) ==========
+@bot.tree.command(name="role_all", description="Add a role to every member in the server")
+@app_commands.describe(role="The role to give to everyone")
+@app_commands.checks.has_permissions(administrator=True)
+async def role_all(interaction: discord.Interaction, role: discord.Role):
+    guild = interaction.guild
+    if guild is None:
+        await interaction.response.send_message("❌ This can only be used in a server.", ephemeral=True)
+        return
+
+    # Sanity checks up front so we don't burn through the member list only to fail
+    if role >= guild.me.top_role:
+        await interaction.response.send_message(
+            f"❌ I can't assign **{role.name}** — it's above (or equal to) my own top role. Move my role above it in Server Settings first.",
+            ephemeral=True
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True, thinking=True)
+
+    added, skipped, failed = 0, 0, 0
+    for member in guild.members:
+        if member.bot:
+            continue
+        if role in member.roles:
+            skipped += 1
+            continue
+        try:
+            await member.add_roles(role, reason=f"/role_all run by {interaction.user}")
+            added += 1
+        except (discord.Forbidden, discord.HTTPException):
+            failed += 1
+        await asyncio.sleep(0.5)  # spread requests out to avoid hitting Discord's rate limit
+
+    await interaction.followup.send(
+        f"✅ Done. Added **{role.name}** to {added} member(s). "
+        f"{skipped} already had it. {failed} failed.",
+        ephemeral=True
+    )
+
+
+@role_all.error
+async def role_all_error(interaction: discord.Interaction, error: app_commands.AppCommandError):
+    if isinstance(error, app_commands.MissingPermissions):
+        await interaction.response.send_message("❌ You don't have permission to use this command.", ephemeral=True)
+    else:
+        import traceback
+        traceback.print_exception(type(error), error, error.__traceback__)
+        if interaction.response.is_done():
+            await interaction.followup.send("❌ Something went wrong running that command.", ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ Something went wrong running that command.", ephemeral=True)
+
+
 # ========== ERROR HANDLING ==========
 @bot.event
 async def on_command_error(ctx, error):
