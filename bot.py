@@ -1,10 +1,10 @@
-import os 
-import random
+import os
 import discord
 from discord.ext import commands, tasks
 import json
 import asyncio
 from datetime import datetime
+import random
 
 # Configuration
 BOT_TOKEN = os.getenv('BOT_TOKEN')
@@ -25,10 +25,10 @@ bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Pricing configuration
 PRICING = {
-    "gamepass": 1.00,  # per 1K
-    "preloaded": 2.00,  # per 1K
-    "giftcard": 2.50,   # per 1K
-    "account": 0.00     # Will be set per account type
+    "gamepass": 1.00,
+    "preloaded": 2.00,
+    "giftcard": 2.50,
+    "account": 0.00
 }
 
 # Account pricing
@@ -40,7 +40,7 @@ ACCOUNT_PRICES = {
     "aged": 30.00
 }
 
-# Supported cryptocurrencies (Litecoin only for now)
+# Supported cryptocurrencies
 SUPPORTED_CRYPTO = ["litecoin"]
 
 # Valid delivery methods
@@ -92,7 +92,7 @@ VOUCH_MESSAGES = [
 ]
 
 CUSTOMER_NAMES = [
-    "Dark_Blaze", "CyberNinja", "Shadow_Knight", "Ice_Crystal", 
+    "Dark_Blaze", "CyberNinja", "Shadow_Knight", "Ice_Crystal",
     "Storm_Fury", "Neon_Dragon", "Mystic_Wolf", "Thunder_Bolt",
     "Ghost_Walker", "Flame_Phoenix", "Dream_Weaver", "Star_Glow",
     "Wolf_Pack", "Dark_Soul", "Light_Bringer", "Night_Hawk",
@@ -100,7 +100,6 @@ CUSTOMER_NAMES = [
 ]
 
 class Order:
-    """Class to represent an order"""
     def __init__(self, user_id, amount, delivery_method, payment_method, price, order_type="robux"):
         self.user_id = user_id
         self.amount = amount
@@ -112,16 +111,14 @@ class Order:
         self.order_id = f"ORDER-{datetime.now().strftime('%Y%m%d%H%M%S')}-{user_id}"
         self.payment_address = None
         self.payment_amount = None
-        self.order_type = order_type  # "robux" or "account"
+        self.order_type = order_type
 
 class OrderManager:
-    """Manages all orders"""
     def __init__(self):
         self.orders = {}
         self.load_orders()
     
     def load_orders(self):
-        """Load orders from file"""
         try:
             if os.path.exists('orders.json'):
                 with open('orders.json', 'r') as f:
@@ -140,7 +137,6 @@ class OrderManager:
             pass
     
     def save_orders(self):
-        """Save orders to file"""
         data = {}
         for key, order in self.orders.items():
             data[key] = {
@@ -160,18 +156,15 @@ class OrderManager:
             json.dump(data, f, indent=2)
     
     def create_order(self, user_id, amount, delivery_method, payment_method, price, order_type="robux"):
-        """Create a new order"""
         order = Order(user_id, amount, delivery_method, payment_method, price, order_type)
         self.orders[order.order_id] = order
         self.save_orders()
         return order
     
     def get_order(self, order_id):
-        """Get an order by ID"""
         return self.orders.get(order_id)
     
     def update_order_status(self, order_id, status):
-        """Update order status"""
         if order_id in self.orders:
             self.orders[order_id].status = status
             self.save_orders()
@@ -179,7 +172,6 @@ class OrderManager:
         return False
     
     def update_payment_details(self, order_id, address, amount):
-        """Update payment details for an order"""
         if order_id in self.orders:
             self.orders[order_id].payment_address = address
             self.orders[order_id].payment_amount = amount
@@ -187,15 +179,12 @@ class OrderManager:
             return True
         return False
 
-# Initialize order manager
 order_manager = OrderManager()
 
 # ========== AUTO-MESSAGING SYSTEM ==========
 @tasks.loop(minutes=20)
 async def auto_post_messages():
-    """Post random messages every 20 minutes"""
     try:
-        # Get channels
         vouches_channel = bot.get_channel(VOUCHES_CHANNEL_ID)
         order_history_channel = bot.get_channel(ORDER_HISTORY_CHANNEL_ID)
         
@@ -203,14 +192,12 @@ async def auto_post_messages():
             print("Could not find channels for auto-posting")
             return
         
-        # Post random vouch
         if vouches_channel:
             vouch = random.choice(VOUCH_MESSAGES)
             customer = random.choice(CUSTOMER_NAMES)
             await vouches_channel.send(f"**{customer}** said:\n{vouch}")
             print(f"Posted vouch: {customer} - {vouch[:30]}...")
         
-        # Post random ticket
         if order_history_channel:
             ticket = random.choice(TICKET_MESSAGES)
             customer = random.choice(CUSTOMER_NAMES)
@@ -222,14 +209,12 @@ async def auto_post_messages():
 
 @auto_post_messages.before_loop
 async def before_auto_post():
-    """Wait for bot to be ready before starting"""
     await bot.wait_until_ready()
 
 # ========== SETUP COMMANDS ==========
 @bot.command(name='setup_robux')
 @commands.has_permissions(administrator=True)
 async def setup_robux(ctx):
-    """Setup Buy Robux panel in current channel"""
     embed = discord.Embed(
         title="🛒 Buy Robux™",
         description="Click the button below to purchase Robux!",
@@ -253,7 +238,6 @@ async def setup_robux(ctx):
 @bot.command(name='setup_accounts')
 @commands.has_permissions(administrator=True)
 async def setup_accounts(ctx):
-    """Setup Buy Account panel in current channel"""
     embed = discord.Embed(
         title="👤 Buy Accounts",
         description="Click the button below to purchase accounts!",
@@ -277,7 +261,6 @@ async def setup_accounts(ctx):
 @bot.command(name='setup_sell')
 @commands.has_permissions(administrator=True)
 async def setup_sell(ctx):
-    """Setup Sell Items panel in current channel"""
     embed = discord.Embed(
         title="💎 Sell Items",
         description="Click the button below to sell your items!",
@@ -299,7 +282,7 @@ async def setup_sell(ctx):
         inline=False
     )
     view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="💎 Sell Items", style=discord.ButtonStyle.gold, custom_id="sell_items"))
+    view.add_item(discord.ui.Button(label="💎 Sell Items", style=discord.ButtonStyle.secondary, custom_id="sell_items"))
     await ctx.send(embed=embed, view=view)
     await ctx.send("✅ Sell Items panel setup complete!")
 
@@ -316,42 +299,35 @@ class TicketView(discord.ui.View):
     async def buy_account_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.create_ticket(interaction, "account")
     
-    @discord.ui.button(label="💎 Sell Items", style=discord.ButtonStyle.gold, custom_id="sell_items")
+    @discord.ui.button(label="💎 Sell Items", style=discord.ButtonStyle.secondary, custom_id="sell_items")
     async def sell_items_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await self.create_ticket(interaction, "sell")
     
     async def create_ticket(self, interaction: discord.Interaction, ticket_type: str):
-        """Create a ticket channel"""
         guild = interaction.guild
         
-        # Check if user already has a ticket
         for channel in guild.channels:
             if channel.name == f"ticket-{interaction.user.name.lower()}":
                 await interaction.response.send_message("You already have an open ticket!", ephemeral=True)
                 return
         
-        # Create category if it doesn't exist
         category = discord.utils.get(guild.categories, name="Tickets")
         if not category:
             category = await guild.create_category("Tickets")
         
-        # Create overwrites
         overwrites = {
             guild.default_role: discord.PermissionOverwrite(read_messages=False),
             interaction.user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
             guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
         }
         
-        # Add owner to all tickets
         owner = guild.get_member(OWNER_ID)
         if owner:
             overwrites[owner] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
         
-        # Create the ticket channel
         channel_name = f"ticket-{interaction.user.name.lower()}"
         channel = await guild.create_text_channel(channel_name, category=category, overwrites=overwrites)
         
-        # Send welcome message based on ticket type
         embed = discord.Embed(
             title=f"🎫 Ticket Created",
             description=f"Welcome {interaction.user.mention}!",
@@ -368,7 +344,6 @@ class TicketView(discord.ui.View):
             embed.add_field(name="Type", value="💎 Selling Items", inline=False)
             embed.add_field(name="Note", value=f"Please wait for <@{OWNER_ID}> to assist you!", inline=False)
             await channel.send(embed=embed)
-            # Notify owner
             owner = bot.get_user(OWNER_ID)
             if owner:
                 await owner.send(f"💎 {interaction.user.name} wants to sell items! Check {channel.mention}")
@@ -395,10 +370,8 @@ class RobuxOrderView(discord.ui.View):
                 await interaction.followup.send("❌ Minimum order is 1,000 Robux!", ephemeral=True)
                 return
             
-            # Store amount in view
             self.amount = amount
             
-            # Show delivery methods
             embed = discord.Embed(
                 title="📦 Select Delivery Method",
                 description=f"Amount: **{amount:,} Robux**\nPrice: **${self.calculate_price(amount):.2f}**",
@@ -412,7 +385,6 @@ class RobuxOrderView(discord.ui.View):
             await interaction.followup.send("⏰ Timeout! Please start again.", ephemeral=True)
     
     def calculate_price(self, amount):
-        """Calculate price based on amount"""
         if 1000 <= amount <= 24000:
             return (amount / 1000) * 1.00
         elif 25000 <= amount <= 49000:
@@ -447,21 +419,17 @@ class DeliveryMethodView(discord.ui.View):
     @discord.ui.button(label="🎮 In-Game", style=discord.ButtonStyle.danger, custom_id="ingame")
     async def ingame(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(f"Got it! In-game was chosen, please wait for the owner - <@{OWNER_ID}>", ephemeral=False)
-        # Notify owner
         owner = bot.get_user(OWNER_ID)
         if owner:
             await owner.send(f"🎮 {interaction.user.name} chose In-Game delivery for {self.amount:,} Robux! Check {interaction.channel.mention}")
     
     async def process_delivery(self, interaction: discord.Interaction, method: str):
-        """Process delivery method selection"""
-        # Calculate final price based on delivery method
         final_price = self.price
         if method == "preloaded_account":
             final_price = self.price * 2
         elif method == "giftcard":
             final_price = self.price * 2.5
         
-        # Show payment methods
         embed = discord.Embed(
             title="💳 Select Payment Method",
             description=f"Delivery: **{method.replace('_', ' ').title()}**\nAmount: **{self.amount:,} Robux**\nTotal Price: **${final_price:.2f}**",
@@ -480,7 +448,6 @@ class PaymentMethodView(discord.ui.View):
     
     @discord.ui.button(label="Cryptocurrency", style=discord.ButtonStyle.green, custom_id="crypto")
     async def crypto(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Show crypto options (only Litecoin for now)
         embed = discord.Embed(
             title="🪙 Select Cryptocurrency",
             description="Choose your preferred cryptocurrency:",
@@ -497,11 +464,9 @@ class CryptoSelectionView(discord.ui.View):
     
     @discord.ui.button(label="Litecoin", style=discord.ButtonStyle.blurple, custom_id="litecoin")
     async def litecoin(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Generate payment invoice
-        ltc_amount = self.price / 75  # Assuming $75 per LTC (approximate rate)
+        ltc_amount = self.price / 75
         ltc_amount = round(ltc_amount, 8)
         
-        # Create order
         order = order_manager.create_order(
             interaction.user.id,
             self.amount,
@@ -529,7 +494,6 @@ class CryptoSelectionView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed, view=view)
         
-        # Notify owner
         owner = bot.get_user(OWNER_ID)
         if owner:
             await owner.send(f"🆕 New Robux Order!\nOrder ID: `{order.order_id}`\nUser: {interaction.user.name}\nAmount: {self.amount:,} Robux\nPrice: ${self.price:.2f}\nCheck {interaction.channel.mention}")
@@ -560,7 +524,6 @@ class AccountOrderView(discord.ui.View):
         await self.process_account(interaction, "aged", "$30.00")
     
     async def process_account(self, interaction: discord.Interaction, account_type: str, price_str: str):
-        """Process account purchase"""
         price = float(price_str.replace('$', ''))
         
         embed = discord.Embed(
@@ -579,11 +542,9 @@ class AccountPaymentView(discord.ui.View):
     
     @discord.ui.button(label="Pay with Litecoin", style=discord.ButtonStyle.green, custom_id="pay_account")
     async def pay_account(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Generate payment invoice
-        ltc_amount = self.price / 75  # Assuming $75 per LTC
+        ltc_amount = self.price / 75
         ltc_amount = round(ltc_amount, 8)
         
-        # Create order
         order = order_manager.create_order(
             interaction.user.id,
             self.account_type,
@@ -610,7 +571,6 @@ class AccountPaymentView(discord.ui.View):
         
         await interaction.response.send_message(embed=embed, view=view)
         
-        # Notify owner
         owner = bot.get_user(OWNER_ID)
         if owner:
             await owner.send(f"🆕 New Account Order!\nOrder ID: `{order.order_id}`\nUser: {interaction.user.name}\nAccount Type: {self.account_type.title()}\nPrice: ${self.price:.2f}\nCheck {interaction.channel.mention}")
@@ -619,7 +579,6 @@ class AccountPaymentView(discord.ui.View):
 @bot.command(name='orders')
 @commands.has_permissions(administrator=True)
 async def list_orders(ctx):
-    """List all pending orders (Admin only)"""
     pending_orders = [o for o in order_manager.orders.values() if o.status == "pending"]
     
     if not pending_orders:
@@ -631,7 +590,7 @@ async def list_orders(ctx):
         color=discord.Color.blue()
     )
     
-    for order in pending_orders[:10]:  # Show first 10
+    for order in pending_orders[:10]:
         embed.add_field(
             name=order.order_id,
             value=f"User: <@{order.user_id}>\nType: {order.order_type.title()}\nPrice: ${order.price:.2f}",
@@ -643,7 +602,6 @@ async def list_orders(ctx):
 @bot.command(name='order')
 @commands.has_permissions(administrator=True)
 async def view_order(ctx, order_id: str):
-    """View order details (Admin only)"""
     order = order_manager.get_order(order_id)
     if not order:
         await ctx.send("❌ Order not found!")
@@ -681,38 +639,29 @@ async def view_order(ctx, order_id: str):
 # ========== EVENT HANDLERS ==========
 @bot.event
 async def on_ready():
-    """Called when bot is ready"""
     print(f'✅ Bot is ready! Logged in as {bot.user}')
     print(f'📊 Connected to {len(bot.guilds)} guilds')
-    
-    # Start auto-posting
     auto_post_messages.start()
     print('🔄 Auto-posting started (every 20 minutes)')
 
 @bot.event
 async def on_interaction(interaction: discord.Interaction):
-    """Handle button interactions"""
     if interaction.type != discord.InteractionType.component:
         return
     
     custom_id = interaction.data.get('custom_id', '')
     
-    # Handle confirm payment
     if custom_id == 'confirm_payment':
         await interaction.response.send_message("⏳ Payment confirmation received! Please wait for the owner to verify your payment.", ephemeral=True)
-        
-        # Notify owner
         owner = bot.get_user(OWNER_ID)
         if owner:
             await owner.send(f"💳 {interaction.user.name} confirmed payment in {interaction.channel.mention}")
     
-    # Handle complete order (admin only)
     elif custom_id == 'complete_order':
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("❌ Only the owner can complete orders!", ephemeral=True)
             return
         
-        # Extract order ID from message
         if interaction.message and interaction.message.embeds:
             embed = interaction.message.embeds[0]
             if embed.title and embed.title.startswith("📋 Order Details -"):
@@ -720,20 +669,17 @@ async def on_interaction(interaction: discord.Interaction):
                 order_manager.update_order_status(order_id, "completed")
                 await interaction.response.send_message("✅ Order marked as completed!")
                 
-                # Notify user
                 order = order_manager.get_order(order_id)
                 if order:
                     user = bot.get_user(order.user_id)
                     if user:
                         await user.send(f"✅ Your order `{order_id}` has been completed! Enjoy your purchase!")
     
-    # Handle cancel order (admin only)
     elif custom_id == 'cancel_order':
         if interaction.user.id != OWNER_ID:
             await interaction.response.send_message("❌ Only the owner can cancel orders!", ephemeral=True)
             return
         
-        # Extract order ID from message
         if interaction.message and interaction.message.embeds:
             embed = interaction.message.embeds[0]
             if embed.title and embed.title.startswith("📋 Order Details -"):
@@ -741,7 +687,6 @@ async def on_interaction(interaction: discord.Interaction):
                 order_manager.update_order_status(order_id, "cancelled")
                 await interaction.response.send_message("❌ Order cancelled!")
                 
-                # Notify user
                 order = order_manager.get_order(order_id)
                 if order:
                     user = bot.get_user(order.user_id)
