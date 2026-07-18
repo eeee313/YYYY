@@ -1,6 +1,7 @@
 import os
 import discord
 from discord.ext import commands, tasks
+from discord import app_commands
 import json
 import asyncio
 from datetime import datetime
@@ -211,6 +212,41 @@ async def auto_post_messages():
 @auto_post_messages.before_loop
 async def before_auto_post():
     await bot.wait_until_ready()
+
+# ========== SLASH COMMANDS ==========
+@bot.tree.command(name="sendorder", description="Send a random order message to order history channel (Admin only)")
+@app_commands.default_permissions(administrator=True)
+async def slash_sendorder(interaction: discord.Interaction):
+    """Send a random order message to order history channel"""
+    try:
+        order_history_channel = bot.get_channel(ORDER_HISTORY_CHANNEL_ID)
+        if not order_history_channel:
+            await interaction.response.send_message("❌ Order history channel not found!", ephemeral=True)
+            return
+        
+        ticket = random.choice(TICKET_MESSAGES)
+        customer = random.choice(CUSTOMER_NAMES)
+        await order_history_channel.send(f"📋 **New Order from {customer}**\n{ticket}")
+        await interaction.response.send_message(f"✅ Order message sent to {order_history_channel.mention}!", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+
+@bot.tree.command(name="sendvouch", description="Send a random vouch message to vouches channel (Admin only)")
+@app_commands.default_permissions(administrator=True)
+async def slash_sendvouch(interaction: discord.Interaction):
+    """Send a random vouch message to vouches channel"""
+    try:
+        vouches_channel = bot.get_channel(VOUCHES_CHANNEL_ID)
+        if not vouches_channel:
+            await interaction.response.send_message("❌ Vouches channel not found!", ephemeral=True)
+            return
+        
+        vouch = random.choice(VOUCH_MESSAGES)
+        customer = random.choice(CUSTOMER_NAMES)
+        await vouches_channel.send(f"**{customer}** said:\n{vouch}")
+        await interaction.response.send_message(f"✅ Vouch message sent to {vouches_channel.mention}!", ephemeral=True)
+    except Exception as e:
+        await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
 # ========== SETUP COMMANDS ==========
 @bot.command(name='setup_robux')
@@ -706,45 +742,4 @@ async def view_order(ctx, order_id: str):
         embed.add_field(name="Amount", value=f"{order.amount:,} Robux", inline=True)
         embed.add_field(name="Delivery Method", value=order.delivery_method.replace('_', ' ').title(), inline=True)
     else:
-        embed.add_field(name="Account Type", value=order.amount, inline=True)
-    
-    embed.add_field(name="Price", value=f"${order.price:.2f}", inline=True)
-    embed.add_field(name="Status", value=ORDER_STATUSES.get(order.status, order.status), inline=True)
-    
-    if order.payment_address:
-        embed.add_field(name="Payment Address", value=f"```{order.payment_address}```", inline=False)
-    if order.payment_amount:
-        embed.add_field(name="Payment Amount", value=f"{order.payment_amount} LTC", inline=True)
-    
-    embed.add_field(name="Created At", value=order.created_at.strftime("%Y-%m-%d %H:%M:%S"), inline=True)
-    
-    view = discord.ui.View()
-    view.add_item(discord.ui.Button(label="✅ Complete Order", style=discord.ButtonStyle.success, custom_id="complete_order"))
-    view.add_item(discord.ui.Button(label="❌ Cancel Order", style=discord.ButtonStyle.danger, custom_id="cancel_order"))
-    
-    await ctx.send(embed=embed, view=view)
-
-# ========== EVENT HANDLERS ==========
-@bot.event
-async def on_ready():
-    print(f'✅ Bot is ready! Logged in as {bot.user}')
-    print(f'📊 Connected to {len(bot.guilds)} guilds')
-    auto_post_messages.start()
-    print('🔄 Auto-posting started (every 20 minutes)')
-
-@bot.event
-async def on_interaction(interaction: discord.Interaction):
-    if interaction.type != discord.InteractionType.component:
-        return
-    
-    custom_id = interaction.data.get('custom_id', '')
-    
-    if custom_id == 'confirm_payment':
-        await interaction.response.send_message("⏳ Payment confirmation received! Please wait for the owner to verify your payment.", ephemeral=True)
-        owner = bot.get_user(OWNER_ID)
-        if owner:
-            await owner.send(f"💳 {interaction.user.name} confirmed payment in {interaction.channel.mention}")
-    
-    elif custom_id == 'complete_order':
-        if interaction.user.id != OWNER_ID:
-            await interaction.response.send_message("❌ Only
+        embed.add_field(name="Account Type", value=order.amount, inline
