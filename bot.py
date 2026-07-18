@@ -32,8 +32,9 @@ LTC_USD_RATE = 75.00
 
 # Channel IDs
 TICKET_CATEGORY_ID = 1527856283498184876  # Ticket category
-ORDER_CHANNEL_ID = 1527833245868363856    # Order channel
+ORDER_CHANNEL_ID = 1527833245868363856    # Order/order-history channel
 VOUCH_CHANNEL_ID = 1527833204935889120    # Vouch channel
+WELCOME_CHANNEL_ID = 1527829658979012608  # Welcome message channel
 
 # Bot setup
 intents = discord.Intents.default()
@@ -121,6 +122,8 @@ class Order:
         self.payment_address = None
         self.payment_amount = None
         self.order_type = order_type
+        self.rating = 5          # default star rating shown when the order-completed embed posts
+        self.handled_by = None   # staff member ID who marked the order completed
 
 
 class OrderManager:
@@ -142,6 +145,8 @@ class OrderManager:
                         order.created_at = datetime.fromisoformat(value['created_at'])
                         order.payment_address = value.get('payment_address')
                         order.payment_amount = value.get('payment_amount')
+                        order.rating = value.get('rating', 5)
+                        order.handled_by = value.get('handled_by')
                         self.orders[key] = order
         except FileNotFoundError:
             pass
@@ -160,7 +165,9 @@ class OrderManager:
                 'created_at': order.created_at.isoformat(),
                 'payment_address': order.payment_address,
                 'payment_amount': order.payment_amount,
-                'order_type': order.order_type
+                'order_type': order.order_type,
+                'rating': order.rating,
+                'handled_by': order.handled_by
             }
         with open('orders.json', 'w') as f:
             json.dump(data, f, indent=2)
@@ -191,6 +198,29 @@ class OrderManager:
 
 
 order_manager = OrderManager()
+
+
+def build_order_completed_embed(order: "Order") -> discord.Embed:
+    """Builds the 'Order Completed' embed posted to the order-history channel.
+    Only ever call this for a real order that is actually marked completed —
+    it's a receipt, not a marketing graphic."""
+    item_desc = f"{order.amount:,} Robux" if order.order_type == "robux" else str(order.amount)
+    stars = "⭐" * max(1, min(5, order.rating))
+
+    embed = discord.Embed(
+        title="Order Completed",
+        description=(
+            f"**Client** has successfully purchased **{item_desc}**\n"
+            f"via **{order.payment_method.title()}**"
+        ),
+        color=discord.Color.red()
+    )
+    embed.add_field(name="Order Rating", value=stars, inline=False)
+    embed.add_field(name="Order ID", value=f"`{order.order_id}`", inline=False)
+    handled_by_text = f"<@{order.handled_by}>" if order.handled_by else "Staff"
+    embed.add_field(name="Order handled by", value=f"{handled_by_text}, thank you for using **Buy Robux™**.", inline=False)
+    embed.set_footer(text=f"User hidden for privacy reasons • Buy Robux™ • {order.created_at.strftime('%b %d, %Y %I:%M %p')}")
+    return embed
 
 
 # ========== TICKET SYSTEM ==========
@@ -755,6 +785,15 @@ async def view_order(ctx, order_id: str):
     for status in ("processing", "completed", "cancelled"):
         async def make_callback(interaction: discord.Interaction, order_id=order_id, status=status):
             order_manager.update_order_status(order_id, status)
+            updated_order = order_manager.get_order(order_id)
+
+            if status == "completed" and updated_order:
+                updated_order.handled_by = interaction.user.id
+                order_manager.save_orders()
+                history_channel = bot.get_channel(ORDER_CHANNEL_ID)
+                if history_channel:
+                    await history_channel.send(embed=build_order_completed_embed(updated_order))
+
             await interaction.response.send_message(f"✅ Order `{order_id}` marked **{status}**.", ephemeral=True)
 
         button = discord.ui.Button(label=status.title(), style=discord.ButtonStyle.secondary, custom_id=f"set_status_{status}")
@@ -767,30 +806,38 @@ async def view_order(ctx, order_id: str):
 # ========== SEND COMMAND ==========
 @bot.command(name='send')
 @commands.has_permissions(administrator=True)
-async def send_command(ctx):
-    """Sends a random vouch + order embed (Admin only)"""
+async def send_command(ctx, order_id: str, rating: int = 5, *, comment: str = None):
+    """Posts a vouch for a REAL completed order. Usage: !send <order_id> [rating 1-5] [comment]
+    Refuses to run for orders that don't exist or aren't completed — this posts
+    proof of a real transaction, not filler content."""
+    order = order_manager.get_order(order_id)
+    if not order:
+        await ctx.send(f"❌ Order `{order_id}` not found.")
+        return
+    if order.status != "completed":
+        await ctx.send(f"❌ Order `{order_id}` is **{order.status}**, not completed — can't vouch for it yet.")
+        return
 
-    # Sample vouches (you can add more)
-    vouches = [
-        "Fast delivery, trusted seller!",
-        "Got my Robux instantly, 10/10!",
-        "Smooth transaction, will buy again.",
-        "Best prices around, highly recommend!",
-        "Legit and fast, no issues at all."
-    ]
+    rating = max(1, min(5, rating))
+    order.rating = rating
+    order_manager.save_orders()
 
     vouch_channel = bot.get_channel(VOUCH_CHANNEL_ID)
     if vouch_channel is None:
         await ctx.send("❌ Vouch channel not found. Check VOUCH_CHANNEL_ID.")
         return
 
-    vouch_text = random.choice(vouches)
+    item_desc = f"{order.amount:,} Robux" if order.order_type == "robux" else str(order.amount)
     embed = discord.Embed(
         title="⭐ New Vouch",
-        description=vouch_text,
+        description=f"Client purchased **{item_desc}** via **{order.payment_method.title()}**",
         color=discord.Color.green()
     )
-    embed.set_footer(text=f"Posted by {ctx.author.name}")
+    embed.add_field(name="Rating", value="⭐" * rating, inline=False)
+    embed.add_field(name="Order ID", value=f"`{order.order_id}`", inline=False)
+    if comment:
+        embed.add_field(name="Comment", value=comment, inline=False)
+    embed.set_footer(text="User hidden for privacy reasons • Buy Robux™")
 
     await vouch_channel.send(embed=embed)
     await ctx.send(f"✅ Vouch sent to {vouch_channel.mention}!")
@@ -812,6 +859,56 @@ async def on_command_error(ctx, error):
         await ctx.send("❌ Something went wrong running that command.")
 
 
+# ========== TERMS OF SERVICE ==========
+@bot.command(name='tos')
+async def tos_command(ctx):
+    embed = discord.Embed(
+        title="📜 Buy Robux™ - Terms of Service",
+        description="Please read before purchasing. Opening a ticket means you agree to these terms.",
+        color=discord.Color.dark_red()
+    )
+    embed.add_field(
+        name="1. Payments",
+        value="We only accept Litecoin (LTC). Send the **exact** amount shown on your invoice — under/overpayments may delay your order.",
+        inline=False
+    )
+    embed.add_field(
+        name="2. No Refunds",
+        value="Once Robux, an account, or a giftcard code has been delivered, the order is final. No refunds after delivery.",
+        inline=False
+    )
+    embed.add_field(
+        name="3. Delivery Times",
+        value="Most orders are delivered shortly after payment is confirmed on-chain. Delays can happen during high volume — please be patient in your ticket.",
+        inline=False
+    )
+    embed.add_field(
+        name="4. Chargebacks / Disputes",
+        value="Crypto payments are non-reversible. Attempting to falsely dispute a confirmed, delivered order will result in a ban.",
+        inline=False
+    )
+    embed.add_field(
+        name="5. Scam Protection",
+        value="Staff will never DM you first asking for payment outside of an official ticket. Only trust invoices generated inside your ticket channel.",
+        inline=False
+    )
+    embed.set_footer(text="Buy Robux™ • Terms subject to change")
+    await ctx.send(embed=embed)
+
+
+# ========== INVITE TRACKING ==========
+invite_cache = {}  # guild_id -> {invite_code: uses}
+
+
+async def cache_guild_invites(guild: discord.Guild):
+    try:
+        invites = await guild.invites()
+        invite_cache[guild.id] = {inv.code: inv.uses for inv in invites}
+    except discord.Forbidden:
+        print(f"[invite_cache] Missing 'Manage Server' permission in {guild.name}, can't track invites.")
+        invite_cache[guild.id] = {}
+
+
 # ========== BOT STARTUP ==========
 @bot.event
 async def on_ready():
@@ -820,6 +917,8 @@ async def on_ready():
     bot.add_view(TicketView())
     bot.add_view(TicketCloseView())
     bot.add_view(AccountOrderView())
+    for guild in bot.guilds:
+        await cache_guild_invites(guild)
     try:
         synced = await bot.tree.sync()
         print(f"[on_ready] Synced {len(synced)} slash command(s)")
@@ -827,6 +926,48 @@ async def on_ready():
         import traceback
         traceback.print_exc()
     print("[on_ready] Bot is ready.")
+
+
+@bot.event
+async def on_member_join(member: discord.Member):
+    guild = member.guild
+
+    # Work out which invite was used by diffing use-counts against the cache
+    inviter_text = "Unknown"
+    invite_code_text = "Unknown"
+    try:
+        new_invites = await guild.invites()
+        old_invites = invite_cache.get(guild.id, {})
+        for inv in new_invites:
+            if inv.uses is not None and inv.uses > old_invites.get(inv.code, 0):
+                invite_code_text = inv.code
+                inviter_text = inv.inviter.mention if inv.inviter else "Unknown"
+                break
+        invite_cache[guild.id] = {inv.code: inv.uses for inv in new_invites}
+    except discord.Forbidden:
+        pass  # bot lacks Manage Server — inviter/code stay "Unknown"
+
+    welcome_channel = bot.get_channel(WELCOME_CHANNEL_ID)
+    if welcome_channel is None:
+        return
+
+    embed = discord.Embed(
+        title="📈 Buy Robux™ | New Member Joined",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="User", value=member.mention, inline=False)
+    embed.add_field(name="User ID", value=str(member.id), inline=False)
+    embed.add_field(name="Invited By", value=inviter_text, inline=False)
+    embed.add_field(name="Invite Code", value=invite_code_text, inline=False)
+    embed.add_field(
+        name="Account Created",
+        value=member.created_at.strftime("%A, %B %d, %Y %I:%M %p"),
+        inline=False
+    )
+    embed.set_footer(text="Buy Robux™ | Invite Tracker")
+    embed.set_thumbnail(url=member.display_avatar.url)
+
+    await welcome_channel.send(embed=embed)
 
 
 if __name__ == "__main__":
