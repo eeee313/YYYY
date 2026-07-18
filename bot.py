@@ -744,4 +744,4 @@ async def view_order(ctx, order_id: str):
     else:
         embed.add_field(name="Account Type", value=order.amount, inline=True)
     
-    embed.add_field(name="Price", value=f"${
+    embed.add_field(name="Price
