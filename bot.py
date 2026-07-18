@@ -7,7 +7,7 @@ from datetime import datetime
 import random
 
 # Configuration
-BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"  # Replace with your bot token
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 OWNER_ID = 1173953184113360910  # Owner ID for notifications
 
 # LITECOIN CONFIGURATION
